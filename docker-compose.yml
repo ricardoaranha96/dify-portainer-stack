@@ -304,6 +304,7 @@ services:
   # The nginx reverse proxy.
   # used for reverse proxying the API service and Web service.
   nginx:
+    build: .
     image: nginx:latest
     restart: always
     volumes:
