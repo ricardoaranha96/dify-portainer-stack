@@ -4,6 +4,9 @@ services:
   api:
     image: langgenius/dify-api:0.5.4
     restart: always
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
     environment:
       # Startup mode, 'api' starts the API server.
       MODE: api
@@ -208,6 +211,9 @@ services:
   web:
     image: langgenius/dify-web:0.5.4
     restart: always
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
     environment:
       EDITION: SELF_HOSTED
       # The base URL of console application api server, refers to the Console base URL of WEB service if console domain is
@@ -228,6 +234,9 @@ services:
   db:
     image: postgres:15-alpine
     restart: always
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
     environment:
       PGUSER: ${DB_USERNAME}
       # The password for the default postgres user.
@@ -251,6 +260,9 @@ services:
   redis:
     image: redis:6-alpine
     restart: always
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
     volumes:
       # Mount the redis data directory to the container.
       - ./volumes/redis/data:/data
@@ -266,6 +278,9 @@ services:
   weaviate:
     image: semitechnologies/weaviate:1.19.0
     restart: always
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
     volumes:
       # Mount the Weaviate data directory to the container.
       - ./volumes/weaviate:/var/lib/weaviate
@@ -314,5 +329,31 @@ services:
     depends_on:
       - api
       - web
-    ports:
-      - "80:80"
+    networks:
+      # Define a nossa rede padrão do swarm
+      - network_public
+    deploy:
+      mode: replicated # sempre como replicated
+      replicas: 1 # geralmente somente 1 réplica
+      placement:
+        constraints:
+          - node.hostname == dify
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+      labels:
+        # Configura o Roteamento do Traefik
+        - traefik.enable=true # habilita o traefik
+        - traefik.http.routers.nginx.rule=Host(`${DOMAIN}`) # define o endereço
+        - traefik.http.routers.nginx.entrypoints=websecure # redireciona para SSL
+        - traefik.http.routers.nginx.tls.certresolver=letsencryptresolver # configura o lets encrypt
+        - traefik.http.routers.nginx.priority=1 # prioridade máxima para essa rota (padrão)
+        - traefik.http.routers.nginx.service=nginx # define o nome do serviço
+        - traefik.http.services.nginx.loadbalancer.server.port=80 # define a porta que roda no container
+        - traefik.http.services.nginx.loadbalancer.passHostHeader=true # passa todos os headers para o container
+
+networks:
+  network_public:
+    name: network_public
+    external: true
