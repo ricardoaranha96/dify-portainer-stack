@@ -357,3 +357,8 @@ networks:
   network_public:
     name: network_public
     external: true
+
+volumes:
+  db_data:
+    external: true
+    name: db_data
